@@ -72,15 +72,19 @@ const handleApiResponse = (
  * @param userPrompt The text prompt describing the desired edit.
  * @param hotspot The {x, y} coordinates on the image to focus the edit.
  * @param maskImage A black and white image where edits are applied to white areas.
+ * @param model The AI model to use for the generation.
+ * @param isTurboMode If true, disables AI "thinking" for faster, lower-quality results.
  * @returns A promise that resolves to the data URL of the edited image.
  */
 export const generateEditedImage = async (
     originalImage: File,
     userPrompt: string,
     hotspot: { x: number, y: number } | null,
-    maskImage: File | null
+    maskImage: File | null,
+    model: string,
+    isTurboMode: boolean,
 ): Promise<string> => {
-    console.log('Starting generative edit.', { hotspot, hasMask: !!maskImage });
+    console.log('Starting generative edit.', { hotspot, hasMask: !!maskImage, isTurboMode });
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const originalImagePart = await fileToPart(originalImage);
@@ -127,14 +131,15 @@ Output: Return ONLY the final edited image. Do not return text.`;
     const textPart = { text: prompt };
     parts.push(textPart);
 
+    const config = {
+        responseModalities: [Modality.IMAGE, Modality.TEXT],
+    };
+
     console.log('Sending parts to the model...');
     const response: GenerateContentResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model,
         contents: { parts },
-        // Fix: Add responseModalities config as required for image editing models.
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
+        config,
     });
     console.log('Received response from model.', response);
 
@@ -145,13 +150,17 @@ Output: Return ONLY the final edited image. Do not return text.`;
  * Generates an image with a filter applied using generative AI.
  * @param originalImage The original image file.
  * @param filterPrompt The text prompt describing the desired filter.
+ * @param model The AI model to use for the generation.
+ * @param isTurboMode If true, disables AI "thinking" for faster, lower-quality results.
  * @returns A promise that resolves to the data URL of the filtered image.
  */
 export const generateFilteredImage = async (
     originalImage: File,
     filterPrompt: string,
+    model: string,
+    isTurboMode: boolean,
 ): Promise<string> => {
-    console.log(`Starting filter generation: ${filterPrompt}`);
+    console.log(`Starting filter generation: ${filterPrompt}`, { isTurboMode });
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const originalImagePart = await fileToPart(originalImage);
@@ -164,15 +173,16 @@ Safety & Ethics Policy:
 
 Output: Return ONLY the final filtered image. Do not return text.`;
     const textPart = { text: prompt };
+    
+    const config = {
+        responseModalities: [Modality.IMAGE, Modality.TEXT],
+    };
 
     console.log('Sending image and filter prompt to the model...');
     const response: GenerateContentResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model,
         contents: { parts: [originalImagePart, textPart] },
-        // Fix: Add responseModalities config as required for image editing models.
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
+        config,
     });
     console.log('Received response from model for filter.', response);
     
@@ -183,13 +193,17 @@ Output: Return ONLY the final filtered image. Do not return text.`;
  * Generates an image with a global adjustment applied using generative AI.
  * @param originalImage The original image file.
  * @param adjustmentPrompt The text prompt describing the desired adjustment.
+ * @param model The AI model to use for the generation.
+ * @param isTurboMode If true, disables AI "thinking" for faster, lower-quality results.
  * @returns A promise that resolves to the data URL of the adjusted image.
  */
 export const generateAdjustedImage = async (
     originalImage: File,
     adjustmentPrompt: string,
+    model: string,
+    isTurboMode: boolean,
 ): Promise<string> => {
-    console.log(`Starting global adjustment generation: ${adjustmentPrompt}`);
+    console.log(`Starting global adjustment generation: ${adjustmentPrompt}`, { isTurboMode });
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const originalImagePart = await fileToPart(originalImage);
@@ -206,15 +220,16 @@ Safety & Ethics Policy:
 
 Output: Return ONLY the final adjusted image. Do not return text.`;
     const textPart = { text: prompt };
+    
+    const config = {
+        responseModalities: [Modality.IMAGE, Modality.TEXT],
+    };
 
     console.log('Sending image and adjustment prompt to the model...');
     const response: GenerateContentResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model,
         contents: { parts: [originalImagePart, textPart] },
-        // Fix: Add responseModalities config as required for image editing models.
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
+        config,
     });
     console.log('Received response from model for adjustment.', response);
     
@@ -226,14 +241,18 @@ Output: Return ONLY the final adjusted image. Do not return text.`;
  * @param personOne The first image file.
  * @param personTwo The second image file.
  * @param prompt A description of the desired final scene.
+ * @param model The AI model to use for the generation.
+ * @param isTurboMode If true, disables AI "thinking" for faster, lower-quality results.
  * @returns A promise that resolves to the data URL of the combined image.
  */
 export const generateCombinedImage = async (
     personOne: File,
     personTwo: File,
     prompt: string,
+    model: string,
+    isTurboMode: boolean,
 ): Promise<string> => {
-    console.log(`Starting image combination: ${prompt}`);
+    console.log(`Starting image combination: ${prompt}`, { isTurboMode });
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const personOnePart = await fileToPart(personOne);
@@ -259,13 +278,15 @@ Output: Return ONLY the final combined image.`;
 
     const parts: ContentPart[] = [personOnePart, personTwoPart, textPart];
 
+    const config = {
+        responseModalities: [Modality.IMAGE, Modality.TEXT],
+    };
+
     console.log('Sending two images and combine prompt to the model...');
     const response: GenerateContentResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
+        model,
         contents: { parts },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
+        config,
     });
     console.log('Received response from model for combination.', response);
     

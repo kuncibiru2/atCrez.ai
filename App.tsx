@@ -16,6 +16,13 @@ import CombinePanel from './components/CombinePanel';
 import { UndoIcon, RedoIcon, EyeIcon, BrushIcon, BullseyeIcon, UsersIcon } from './components/icons';
 import StartScreen from './components/StartScreen';
 
+// Model configuration
+type ModelId = 'flash-preview' | 'nano-banana';
+const models: Record<ModelId, { name: string, id: string }> = {
+    'flash-preview': { name: 'Gemini 2.5 Flash Preview', id: 'gemini-2.5-flash-image-preview' },
+    'nano-banana': { name: 'Nano Banana', id: 'gemini-2.5-flash-image-preview' },
+};
+
 // Helper to convert a data URL string to a File object
 const dataURLtoFile = (dataurl: string, filename: string): File => {
     const arr = dataurl.split(',');
@@ -45,6 +52,9 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('retouch');
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [countdown, setCountdown] = useState<number>(0);
+  const [currentModelId, setCurrentModelId] = useState<ModelId>('flash-preview');
+  const [isTurboMode, setIsTurboMode] = useState<boolean>(false);
+  const currentModelApiId = models[currentModelId].id;
   
   // Retouch states
   const [selectionMode, setSelectionMode] = useState<SelectionMode>('point');
@@ -164,7 +174,7 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     setLoadingMessage('AI is working its magic...');
-    setCountdown(15);
+    setCountdown(isTurboMode ? 8 : 15);
     setError(null);
     
     try {
@@ -172,7 +182,9 @@ const App: React.FC = () => {
             currentImage, 
             prompt, 
             isPointValid ? editHotspot : null, 
-            isAreaValid ? drawnMask : null
+            isAreaValid ? drawnMask : null,
+            currentModelApiId,
+            isTurboMode
         );
         const newImageFile = dataURLtoFile(editedImageUrl, `edited-${Date.now()}.png`);
         addImageToHistory(newImageFile);
@@ -183,7 +195,7 @@ const App: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
-  }, [currentImage, prompt, editHotspot, addImageToHistory, selectionMode, drawnMask]);
+  }, [currentImage, prompt, editHotspot, addImageToHistory, selectionMode, drawnMask, currentModelApiId, isTurboMode]);
   
   const handleApplyFilter = useCallback(async (filterPrompt: string) => {
     if (!currentImage) {
@@ -193,11 +205,11 @@ const App: React.FC = () => {
     
     setIsLoading(true);
     setLoadingMessage('Applying creative filter...');
-    setCountdown(12);
+    setCountdown(isTurboMode ? 7 : 12);
     setError(null);
     
     try {
-        const filteredImageUrl = await generateFilteredImage(currentImage, filterPrompt);
+        const filteredImageUrl = await generateFilteredImage(currentImage, filterPrompt, currentModelApiId, isTurboMode);
         const newImageFile = dataURLtoFile(filteredImageUrl, `filtered-${Date.now()}.png`);
         addImageToHistory(newImageFile);
     } catch (err) {
@@ -207,7 +219,7 @@ const App: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
-  }, [currentImage, addImageToHistory]);
+  }, [currentImage, addImageToHistory, currentModelApiId, isTurboMode]);
   
   const handleApplyAdjustment = useCallback(async (adjustmentPrompt: string) => {
     if (!currentImage) {
@@ -217,11 +229,11 @@ const App: React.FC = () => {
     
     setIsLoading(true);
     setLoadingMessage('Making professional adjustments...');
-    setCountdown(12);
+    setCountdown(isTurboMode ? 7 : 12);
     setError(null);
     
     try {
-        const adjustedImageUrl = await generateAdjustedImage(currentImage, adjustmentPrompt);
+        const adjustedImageUrl = await generateAdjustedImage(currentImage, adjustmentPrompt, currentModelApiId, isTurboMode);
         const newImageFile = dataURLtoFile(adjustedImageUrl, `adjusted-${Date.now()}.png`);
         addImageToHistory(newImageFile);
     } catch (err) {
@@ -231,15 +243,15 @@ const App: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
-  }, [currentImage, addImageToHistory]);
+  }, [currentImage, addImageToHistory, currentModelApiId, isTurboMode]);
   
   const handleCombine = useCallback(async (personOne: File, personTwo: File, combinePrompt: string) => {
     setIsLoading(true);
     setLoadingMessage('Combining images into a new scene...');
-    setCountdown(25);
+    setCountdown(isTurboMode ? 15 : 25);
     setError(null);
     try {
-      const combinedImageUrl = await generateCombinedImage(personOne, personTwo, combinePrompt);
+      const combinedImageUrl = await generateCombinedImage(personOne, personTwo, combinePrompt, currentModelApiId, isTurboMode);
       const newImageFile = dataURLtoFile(combinedImageUrl, `combined-${Date.now()}.png`);
       addImageToHistory(newImageFile);
       setActiveTab('retouch');
@@ -250,7 +262,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [addImageToHistory]);
+  }, [addImageToHistory, currentModelApiId, isTurboMode]);
 
   const handleApplyCrop = useCallback(() => {
     if (!completedCrop || !imgRef.current) {
@@ -740,7 +752,13 @@ useEffect(() => {
   
   return (
     <div className="min-h-screen text-gray-100 flex flex-col">
-      <Header />
+      <Header 
+        models={models}
+        currentModelId={currentModelId}
+        onModelChange={(modelId) => setCurrentModelId(modelId as ModelId)}
+        isTurboMode={isTurboMode}
+        onTurboModeChange={setIsTurboMode}
+      />
       <main className={`flex-grow w-full max-w-[1600px] mx-auto p-4 md:p-8 flex flex-col justify-start items-center`}>
         {/* TABS - Placed outside renderContent to be always available */}
         <div className="w-full max-w-4xl bg-gray-800/80 border border-gray-700/80 rounded-lg p-2 flex items-center justify-center gap-2 backdrop-blur-sm mb-6">
